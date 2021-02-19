@@ -36,7 +36,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
+
 import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNullableByDefault;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -240,7 +244,8 @@ public class KafkaIO {
 
   /**
    * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka configuration
-   * should set with {@link Read#withBootstrapServers(String)} and {@link Read#withTopics(List)}.
+   * should set with {@link Read#withBootstrapServers(String)} 
+   * and ({@link Read#withTopics(List)} / {@link Read#withTopicRegex(String)}).
    * Other optional settings include key and value {@link Deserializer}s, custom timestamp and
    * watermark functions.
    */
@@ -248,6 +253,7 @@ public class KafkaIO {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
         .setNumSplits(0)
         .setTopicPartitions(new ArrayList<>())
+        .setTopicRegexPattern(null)
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
@@ -286,8 +292,33 @@ public class KafkaIO {
 
     @Nullable
     abstract ValueProvider<List<String>> getTopics();
-
+    
+    @Nullable
     abstract List<TopicPartition> getTopicPartitions();
+
+    @Nullable
+    abstract ValueProvider<String> getTopicRegex();
+
+    @Nullable
+    abstract Pattern getTopicRegexPattern();
+
+    @Nullable
+    abstract ValueProvider<String> getCustomizedKeyRegexProvider();
+
+    @Nullable
+    abstract ValueProvider<String> getCustomizedKeyReplacementProvider();
+
+    @Nullable
+    abstract ValueProvider<String> getCustomizedKeyPrefixProvider();
+
+    @Nullable
+    abstract String getCustomizedKeyRegex();
+
+    @Nullable
+    abstract String getCustomizedKeyReplacement();
+
+    @Nullable
+    abstract String getCustomizedKeyPrefix();
 
     @Nullable
     abstract Coder<K> getKeyCoder();
@@ -332,6 +363,22 @@ public class KafkaIO {
       abstract Builder<K, V> setTopics(ValueProvider<List<String>> topics);
 
       abstract Builder<K, V> setTopicPartitions(List<TopicPartition> topicPartitions);
+
+      abstract Builder<K, V> setTopicRegex(ValueProvider<String> topicRegex);
+
+      abstract Builder<K, V> setTopicRegexPattern(Pattern topicRegex);
+
+      abstract Builder<K, V> setCustomizedKeyRegexProvider(ValueProvider<String> customizedKeyRegex);
+
+      abstract Builder<K, V> setCustomizedKeyReplacementProvider(ValueProvider<String> customizedKeyReplacement);
+
+      abstract Builder<K, V> setCustomizedKeyPrefixProvider(ValueProvider<String> customizedKeyPrefix);
+
+      abstract Builder<K, V> setCustomizedKeyRegex(String customizedKeyRegex);
+
+      abstract Builder<K, V> setCustomizedKeyReplacement(String customizedKeyReplacement);
+
+      abstract Builder<K, V> setCustomizedKeyPrefix(String customizedKeyPrefix);
 
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
 
@@ -420,6 +467,45 @@ public class KafkaIO {
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
       checkState(getTopics() == null, "Only topics or topicPartitions can be set, not both");
       return toBuilder().setTopicPartitions(ImmutableList.copyOf(topicPartitions)).build();
+    }
+
+    /** ValueProvider version of {@link #withTopicRegex(String)}. */
+    public Read<K, V> withTopicRegex(ValueProvider<String> topicRegex) {
+      checkState(
+          getTopicPartitions().isEmpty(), "Cannot set topic regex with configured topicPartitions");
+      return toBuilder().setTopicRegex(topicRegex).build();
+    }
+
+    /**
+     * Sets the topic regex to read from.
+     *
+     */
+    public Read<K, V> withTopicRegex(String topicRegex) {
+      return withTopicRegex(StaticValueProvider.of(topicRegex));
+    }
+
+    public Read<K, V> withCustomizedKeyRegex(ValueProvider<String> customizedKeyRegex) {
+      return toBuilder().setCustomizedKeyRegexProvider(customizedKeyRegex).build();
+    }
+
+    public Read<K, V> withCustomizedKeyReplacement(ValueProvider<String> customizedKeyReplacement) {
+      return toBuilder().setCustomizedKeyReplacementProvider(customizedKeyReplacement).build();
+    }
+
+    public Read<K, V> withCustomizedKeyPrefix(ValueProvider<String> customizedKeyPrefix) {
+      return toBuilder().setCustomizedKeyPrefixProvider(customizedKeyPrefix).build();
+    }
+
+    public Read<K, V> withCustomizedKeyRegex(String customizedKeyRegex) {
+      return toBuilder().setCustomizedKeyRegex(customizedKeyRegex).build();
+    }
+
+    public Read<K, V> withCustomizedKeyReplacement(String customizedKeyReplacement) {
+      return toBuilder().setCustomizedKeyReplacement(customizedKeyReplacement).build();
+    }
+
+    public Read<K, V> withCustomizedKeyPrefix(String customizedKeyPrefix) {
+      return toBuilder().setCustomizedKeyPrefix(customizedKeyPrefix).build();
     }
 
     /**
@@ -678,8 +764,8 @@ public class KafkaIO {
       checkArgument(getBootstrapServers() != null,
                     "withBootstrapServers() is required");
       checkArgument(
-          getTopics() != null || getTopicPartitions().size() > 0,
-          "Either withTopic(), withTopics() or withTopicPartitions() is required");
+          getTopics() != null || getTopicRegex() != null || getTopicPartitions().size() > 0,
+          "Either withTopic(), withTopics(), withTopicRegex(), or withTopicPartitions() is required");
       checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
       ConsumerSpEL consumerSpEL = new ConsumerSpEL();
@@ -774,29 +860,15 @@ public class KafkaIO {
             );
 
     // set config defaults
-    private static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
-        ImmutableMap.of(
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-            ByteArrayDeserializer.class.getName(),
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-            ByteArrayDeserializer.class.getName(),
-
-            // Use large receive buffer. Once KAFKA-3135 is fixed, this _may_ not be required.
-            // with default value of of 32K, It takes multiple seconds between successful polls.
-            // All the consumer work is done inside poll(), with smaller send buffer size, it
-            // takes many polls before a 1MB chunk from the server is fully read. In my testing
-            // about half of the time select() inside kafka consumer waited for 20-30ms, though
-            // the server had lots of data in tcp send buffers on its side. Compared to default,
-            // this setting increased throughput by many fold (3-4x).
-            ConsumerConfig.RECEIVE_BUFFER_CONFIG,
-            512 * 1024,
-
-            // default to latest offset when we are not resuming.
-            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
-            "latest",
-            // disable auto commit of offsets. we don't require group_id. could be enabled by user.
-            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
-            false);
+    private static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES
+            = ImmutableMap.<String, Object>builder()
+            .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName())
+            .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName())
+            .put(ConsumerConfig.RECEIVE_BUFFER_CONFIG, 512 * 1024)            
+            .put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, Integer.MAX_VALUE)
+            .put(ConsumerConfig.GROUP_ID_CONFIG, "multikafka-cdc-odoo-bq-20210222")
+            .put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 120000)
+            .build();
 
     // default Kafka 0.9 Consumer supplier.
     private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
@@ -808,6 +880,8 @@ public class KafkaIO {
       super.populateDisplayData(builder);
       ValueProvider<List<String>> topics = getTopics();
       List<TopicPartition> topicPartitions = getTopicPartitions();
+      ValueProvider<String> topicRegex = getTopicRegex();
+
       if (topics != null) {
         if (topics.isAccessible()) {
           builder.add(DisplayData.item("topics", Joiner.on(",").join(topics.get()))
@@ -819,6 +893,8 @@ public class KafkaIO {
         builder.add(
             DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
                 .withLabel("Topic Partition/s"));
+      } else if (topicRegex != null) {
+        builder.add(DisplayData.item("topicRegex", topicRegex.toString()).withLabel("Topic Regex/s"));
       }
       builder.add(DisplayData.item(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers()));
       Set<String> ignoredConsumerPropertiesKeys = IGNORED_CONSUMER_PROPERTIES.keySet();

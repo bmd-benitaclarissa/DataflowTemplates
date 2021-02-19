@@ -1,0 +1,7 @@
+{
+  "mainClass": "com.google.cloud.teleport.v2.templates.MultiKafkaCDCToBigQuery",
+  "classPath": "/template/multikafka-cdc-to-bigquery/*:/template/multikafka-cdc-to-bigquery/libs/*:/template/multikafka-cdc-to-bigquery/classes",
+  "defaultParameterValues": {
+    "labels": "{\"goog-dataflow-provided-template-type\":\"flex\", \"goog-dataflow-provided-template-name\":\"multikafka_cdc_to_bigquery\"}"
+  }
+}

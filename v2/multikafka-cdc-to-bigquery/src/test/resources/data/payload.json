@@ -1,0 +1,595 @@
+{
+  "schema": {
+      "type": "struct",
+      "fields": [
+          {
+              "type": "int32",
+              "optional": false,
+              "field": "id"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "name"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "company_id"
+          },
+          {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1,
+              "field": "create_date"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "display_name"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "name": "io.debezium.time.Date",
+              "version": 1,
+              "field": "date"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "title"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "parent_id"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "ref"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "lang"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "tz"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "user_id"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "vat"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "website"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "comment"
+          },
+          {
+              "type": "double",
+              "optional": true,
+              "field": "credit_limit"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "barcode"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "active"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "customer"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "supplier"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "employee"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "function"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "type"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "street"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "street2"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "zip"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "city"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "state_id"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "country_id"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "email"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "phone"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "mobile"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "is_company"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "industry_id"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "color"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "partner_share"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "commercial_partner_id"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "commercial_company_name"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "company_name"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "create_uid"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "write_uid"
+          },
+          {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1,
+              "field": "write_date"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "message_main_attachment_id"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "message_bounce"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "signup_token"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "signup_type"
+          },
+          {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1,
+              "field": "signup_expiration"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "partner_gid"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "additional_info"
+          },
+          {
+              "type": "double",
+              "optional": true,
+              "field": "debit_limit"
+          },
+          {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1,
+              "field": "last_time_entries_checked"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "invoice_warn"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "invoice_warn_msg"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "online_partner_vendor_name"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "online_partner_bank_account"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "field": "team_id"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "sale_warn"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "sale_warn_msg"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "eventOrchestration"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "timestampOrchestration"
+          },
+          {
+              "type": "int32",
+              "optional": true,
+              "name": "io.debezium.time.Date",
+              "version": 1,
+              "field": "birthDate"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "gender"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "webNo"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "customer_orh_id"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "vendor_orh_id"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "is_VAT"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "npwp_number"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "isActive"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "isUpdate"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "contact"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "createDateTime"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "createId"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "lastModifyId"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "lastModifyDate"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "merchant_orh_id"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "is_merchant"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "picking_warn"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "picking_warn_msg"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "purchase_warn"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "purchase_warn_msg"
+          },
+          {
+              "type": "boolean",
+              "optional": true,
+              "field": "is_salesperson"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "salesperson_orh_id"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "cost_center"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "store_code"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "salesperson_category"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "superior_email"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "employee_code"
+          },
+          {
+              "type": "int64",
+              "optional": true,
+              "name": "io.debezium.time.MicroTimestamp",
+              "version": 1,
+              "field": "calendar_last_notif_ack"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "nPWPName"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "nPWPAddress"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "nPWPAddress2"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "nPWPCity"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "nPWPPostCode"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "parentNo"
+          },
+          {
+              "type": "string",
+              "optional": true,
+              "field": "__deleted"
+          }
+      ],
+      "optional": false,
+      "name": "odoo_coba6.public.res_partner.Value"
+  },
+  "payload": {
+      "id": 24575,
+      "name": "UDPAYUNGSEHAT SMG",
+      "company_id": 1,
+      "create_date": 1612162369095839,
+      "display_name": "UDPAYUNGSEHAT SMG",
+      "date": null,
+      "title": null,
+      "parent_id": null,
+      "ref": null,
+      "lang": "en_US",
+      "tz": "Asia/Jakarta",
+      "user_id": null,
+      "vat": null,
+      "website": null,
+      "comment": null,
+      "credit_limit": null,
+      "barcode": null,
+      "active": true,
+      "customer": true,
+      "supplier": false,
+      "employee": false,
+      "function": null,
+      "type": "contact",
+      "street": "Jln payung asri 2.RT 7 RW1.PUDAK.PAYUNG BANYUMANIKSMG JATENG",
+      "street2": null,
+      "zip": "50261",
+      "city": "Semarang",
+      "state_id": null,
+      "country_id": null,
+      "email": "mistahagusprayitno@gmail.com",
+      "phone": null,
+      "mobile": null,
+      "is_company": false,
+      "industry_id": null,
+      "color": 0,
+      "partner_share": true,
+      "commercial_partner_id": 24575,
+      "commercial_company_name": null,
+      "company_name": null,
+      "create_uid": 2,
+      "write_uid": 2,
+      "write_date": 1612162369095839,
+      "message_main_attachment_id": null,
+      "message_bounce": 0,
+      "signup_token": null,
+      "signup_type": null,
+      "signup_expiration": null,
+      "partner_gid": null,
+      "additional_info": null,
+      "debit_limit": null,
+      "last_time_entries_checked": null,
+      "invoice_warn": "no-message",
+      "invoice_warn_msg": null,
+      "online_partner_vendor_name": null,
+      "online_partner_bank_account": null,
+      "team_id": null,
+      "sale_warn": "no-message",
+      "sale_warn_msg": null,
+      "eventOrchestration": null,
+      "timestampOrchestration": null,
+      "birthDate": null,
+      "gender": null,
+      "webNo": null,
+      "customer_orh_id": null,
+      "vendor_orh_id": null,
+      "is_VAT": false,
+      "npwp_number": "36800000000000",
+      "isActive": false,
+      "isUpdate": false,
+      "contact": null,
+      "createDateTime": null,
+      "createId": null,
+      "lastModifyId": null,
+      "lastModifyDate": null,
+      "merchant_orh_id": "MCH170300012",
+      "is_merchant": true,
+      "picking_warn": "no-message",
+      "picking_warn_msg": null,
+      "purchase_warn": "no-message",
+      "purchase_warn_msg": null,
+      "is_salesperson": false,
+      "salesperson_orh_id": null,
+      "cost_center": null,
+      "store_code": null,
+      "salesperson_category": null,
+      "superior_email": null,
+      "employee_code": null,
+      "calendar_last_notif_ack": 1612162382000000,
+      "nPWPName": null,
+      "nPWPAddress": null,
+      "nPWPAddress2": null,
+      "nPWPCity": null,
+      "nPWPPostCode": null,
+      "parentNo": null,
+      "__deleted": "false"
+  }
+}
