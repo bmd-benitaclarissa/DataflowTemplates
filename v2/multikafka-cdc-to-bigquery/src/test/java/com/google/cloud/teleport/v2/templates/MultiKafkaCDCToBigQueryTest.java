@@ -21,7 +21,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.teleport.v2.coders.FailsafeElementCoder;
-import com.google.cloud.teleport.v2.templates.MultiKafkaCDCToBigQuery.MessageToTableRow;
+import com.google.cloud.teleport.v2.templates.MultiKafkaCDCToBigQuery.TransformMessagesUsingUDF;
 import com.google.cloud.teleport.v2.values.FailsafeElement;
 import com.google.common.io.Resources;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -83,7 +83,7 @@ public class MultiKafkaCDCToBigQueryTest {
                             "CreateInput",
                             Create.of(message)
                                     .withCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
-                    .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
+                    .apply("TransformMessagesUsingUDF", new TransformMessagesUsingUDF(options));
 
     // Assert
     PAssert.that(transformOut.get(MultiKafkaCDCToBigQuery.UDF_DEADLETTER_OUT)).empty();
@@ -107,7 +107,7 @@ public class MultiKafkaCDCToBigQueryTest {
                             "CreateBadInput",
                             Create.of(badMessage)
                                     .withCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
-                    .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
+                    .apply("TransformMessagesUsingUDF", new TransformMessagesUsingUDF(options));
 
     // Assert
     PAssert.that(badTransformOut.get(MultiKafkaCDCToBigQuery.UDF_DEADLETTER_OUT))
