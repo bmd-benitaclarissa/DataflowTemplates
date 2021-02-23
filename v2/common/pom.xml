@@ -37,6 +37,8 @@
         <hadoop.version>2.8.5</hadoop.version>
         <jackson.version>2.11.2</jackson.version>
         <truth.version>1.0.1</truth.version>
+        <kafka.clients.version>1.0.0</kafka.clients.version>
+        <spring.version>4.3.18.RELEASE</spring.version>
     </properties>
 
     <dependencies>
@@ -80,6 +82,16 @@
             <groupId>org.codehaus.jackson</groupId>
             <artifactId>*</artifactId></exclusion>
         </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.clients.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-expression</artifactId>
+            <version>${spring.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.beam</groupId>

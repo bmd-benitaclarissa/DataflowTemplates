@@ -15,7 +15,10 @@
  */
 package com.google.cloud.teleport.v2.templates;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.teleport.kafka.connector.KafkaIO;
 import com.google.cloud.teleport.v2.coders.FailsafeElementCoder;
 import com.google.cloud.teleport.v2.transforms.BigQueryConverters.FailsafeJsonToTableRow;
 import com.google.cloud.teleport.v2.transforms.ErrorConverters;
@@ -24,7 +27,10 @@ import com.google.cloud.teleport.v2.transforms.JavascriptTextTransformer.Failsaf
 import com.google.cloud.teleport.v2.utils.SchemaUtils;
 import com.google.cloud.teleport.v2.values.FailsafeElement;
 import com.google.common.collect.ImmutableMap;
+import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,13 +44,16 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryInsertError;
+import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
+import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
-import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation.Required;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -55,9 +64,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -272,7 +284,7 @@ public class MultiKafkaCDCToBigQuery {
             .apply(
                 "ReadFromKafka",
                 KafkaIO.<String, String>read()
-                    .withConsumerConfigUpdates(
+                    .updateConsumerProperties(
                         ImmutableMap.of(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))
                     .withBootstrapServers(options.getBootstrapServers())
                     .withTopicRegex(options.getInputTopicRegex())
@@ -286,99 +298,97 @@ public class MultiKafkaCDCToBigQuery {
                     .withoutMetadata())
 
             /*
-             * Step #2: Transform the Kafka Messages into TableRows
+             * Step #2: Transform the Kafka Messages by UDF Javascript Function
              */
-            .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
+            .apply("TransformMessagesUsingUDF", new TransformMessagesUsingUDF(options));
 
     /*
      * Step #3: Write the successful records out to BigQuery
      */
-    WriteResult writeResult =
-        convertedTableRows
-            .get(TRANSFORM_OUT)
-            .apply(
-                "WriteSuccessfulRecords",
-                BigQueryIO.writeTableRows()
-                    .withoutValidation()
-                    .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                    .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-                    .withExtendedErrorInfo()
-                    .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
-                    .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
-                    .to(options.getOutputTableSpec()));
+    convertedTableRows
+            .get(UDF_OUT)
+            .apply("WritetoBigQuery",
+                    BigQueryIO
+                            .<FailsafeElement<KV<String, String>, String>>write()
+                            .to(new DynamicDestinations<FailsafeElement<KV<String, String>, String>, FailsafeElement<KV<String, String>, String>>() {
+                              public FailsafeElement<KV<String, String>, String> getDestination(ValueInSingleWindow<FailsafeElement<KV<String, String>, String>> element) {
+                                return element.getValue();
+                              }
+                              public TableDestination getTable(FailsafeElement<KV<String, String>, String> element) {
+                                return new TableDestination(element.getOriginalPayload().getKey(), "Record from Kafka");
+                              }
+                              public TableSchema getSchema(FailsafeElement<KV<String, String>, String> element) {
+                                List<TableFieldSchema> fields = new ArrayList<TableFieldSchema>();
+                                JSONObject jsonObj = new JSONObject(element.getOriginalPayload().getValue());
+                                JSONObject jsonSchema = jsonObj.getJSONObject("schema");
+                                JSONArray jsonFields = jsonSchema.getJSONArray("fields");
+                                int jsonFieldsLen = jsonFields.length(), idx;
+                                JSONObject jsonField;
 
-    /*
-     * Step 3 Contd.
-     * Elements that failed inserts into BigQuery are extracted and converted to FailsafeElement
-     */
-    PCollection<FailsafeElement<String, String>> failedInserts =
-        writeResult
-            .getFailedInsertsWithErr()
-            .apply(
-                "WrapInsertionErrors",
-                MapElements.into(FAILSAFE_ELEMENT_CODER.getEncodedTypeDescriptor())
-                    .via(MultiKafkaCDCToBigQuery::wrapBigQueryInsertError))
-            .setCoder(FAILSAFE_ELEMENT_CODER);
+                                for(idx = 0; idx < jsonFieldsLen; idx++){
+                                  jsonField = jsonFields.getJSONObject(idx);
+                                  fields.add(new TableFieldSchema()
+                                                .setName(jsonField.getString("field").replaceAll("([^a-zA-Z0-9])", "_"))
+                                                .setType((jsonField.getString("type") == "int32" || jsonField.getString("type") == "int64") ? "INTEGER"
+                                                        : (jsonField.getString("type") == "double") ? "FLOAT"
+                                                        : (jsonField.getString("type") == "boolean") ? "BOOLEAN"
+                                                        : "STRING")
+                                                .setMode((jsonField.getBoolean("optional") == false)
+                                                              ? "REQUIRED"
+                                                              : "NULLABLE")
+                                  );
+                                }
 
-    /*
-     * Step #4: Write failed records out to BigQuery
-     */
-    PCollectionList.of(convertedTableRows.get(UDF_DEADLETTER_OUT))
-        .and(convertedTableRows.get(TRANSFORM_DEADLETTER_OUT))
-        .apply("Flatten", Flatten.pCollections())
-        .apply(
-            "WriteTransformationFailedRecords",
-            WriteKafkaMessageErrors.newBuilder()
-                .setErrorRecordsTable(
-                    ObjectUtils.firstNonNull(
-                        options.getOutputDeadletterTable(),
-                        options.getOutputTableSpec() + DEFAULT_DEADLETTER_TABLE_SUFFIX))
-                .setErrorRecordsTableSchema(SchemaUtils.DEADLETTER_SCHEMA)
-                .build());
+                                return new TableSchema().setFields(fields);
+                              }
+                            })
+                            .withFormatFunction(new SerializableFunction<FailsafeElement<KV<String, String>, String>, TableRow>() {
+                              @Override
+                              public TableRow apply(FailsafeElement<KV<String, String>, String> element) {
+                                String json = element.getPayload();
+                                TableRow row = null;
+                                // Parse the JSON into a {@link TableRow} object.
+                                try (InputStream inputStream =
+                                             new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8))) {
+                                  row = TableRowJsonCoder.of().decode(inputStream, Coder.Context.OUTER);
 
-    /*
-     * Step #5: Insert records that failed BigQuery inserts into a deadletter table.
-     */
-    failedInserts.apply(
-        "WriteInsertionFailedRecords",
-        ErrorConverters.WriteStringMessageErrors.newBuilder()
-            .setErrorRecordsTable(
-                ObjectUtils.firstNonNull(
-                        options.getOutputDeadletterTable(),
-                        options.getOutputTableSpec() + DEFAULT_DEADLETTER_TABLE_SUFFIX))
-            .setErrorRecordsTableSchema(SchemaUtils.DEADLETTER_SCHEMA)
-            .build());
+                                } catch (IOException e) {
+                                  throw new RuntimeException("Failed to serialize json to table row: " + json, e);
+                                }
+
+                                return row;
+                              }
+                            })
+                            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                            .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+            );
+
 
     return pipeline.run();
   }
 
-  /**
-   * The {@link MessageToTableRow} class is a {@link PTransform} which transforms incoming Kafka
-   * Message objects into {@link TableRow} objects for insertion into BigQuery while applying a UDF
-   * to the input. The executions of the UDF and transformation to {@link TableRow} objects is done
-   * in a fail-safe way by wrapping the element with it's original payload inside the {@link
-   * FailsafeElement} class. The {@link MessageToTableRow} transform will output a {@link
-   * PCollectionTuple} which contains all output and dead-letter {@link PCollection}.
+   /**
+   * The {@link TransformMessagesUsingUDF} class is a {@link PTransform} which transforms incoming Kafka
+   * Message objects by applying an optional UDF to the input. The executions of the UDF objects
+   * is done in a fail-safe way by wrapping the element with it's original payload inside
+   * the {@link FailsafeElement} class. The {@link TransformMessagesUsingUDF} will output
+   * a {@link PCollectionTuple} which contains all UDF output and dead-letter {@link PCollection}.
    *
    * <p>The {@link PCollectionTuple} output will contain the following {@link PCollection}:
    *
    * <ul>
-   *   <li>{@link MultiKafkaCDCToBigQuery#UDF_OUT} - Contains all {@link FailsafeElement} records
-   *       successfully processed by the UDF.
-   *   <li>{@link MultiKafkaCDCToBigQuery#UDF_DEADLETTER_OUT} - Contains all {@link FailsafeElement} records
+   *   <li>{@link TransformMessagesUsingUDF#UDF_OUT} - Contains all {@link FailsafeElement} records
+   *       successfully processed by the optional UDF.
+   *   <li>{@link TransformMessagesUsingUDF#UDF_DEADLETTER_OUT} - Contains all {@link FailsafeElement} records
    *       which failed processing during the UDF execution.
-   *   <li>{@link MultiKafkaCDCToBigQuery#TRANSFORM_OUT} - Contains all records successfully converted from
-   *       JSON to {@link TableRow} objects.
-   *   <li>{@link MultiKafkaCDCToBigQuery#TRANSFORM_DEADLETTER_OUT} - Contains all {@link FailsafeElement}
-   *       records which couldn't be converted to table rows.
    * </ul>
    */
-  static class MessageToTableRow
-      extends PTransform<PCollection<KV<String, String>>, PCollectionTuple> {
+  static class TransformMessagesUsingUDF
+          extends PTransform<PCollection<KV<String, String>>, PCollectionTuple> {
 
     private final Options options;
 
-    MessageToTableRow(Options options) {
+    TransformMessagesUsingUDF(Options options) {
       this.options = options;
     }
 
@@ -386,35 +396,22 @@ public class MultiKafkaCDCToBigQuery {
     public PCollectionTuple expand(PCollection<KV<String, String>> input) {
 
       PCollectionTuple udfOut =
-          input
-              // Map the incoming messages into FailsafeElements so we can recover from failures
-              // across multiple transforms.
-              .apply("MapToRecord", ParDo.of(new MessageToFailsafeElementFn()))
-              .apply(
-                  "InvokeUDF",
-                  FailsafeJavascriptUdf.<KV<String, String>>newBuilder()
-                      .setFileSystemPath(options.getJavascriptTextTransformGcsPath())
-                      .setFunctionName(options.getJavascriptTextTransformFunctionName())
-                      .setSuccessTag(UDF_OUT)
-                      .setFailureTag(UDF_DEADLETTER_OUT)
-                      .build());
-
-      // Convert the records which were successfully processed by the UDF into TableRow objects.
-      PCollectionTuple jsonToTableRowOut =
-          udfOut
-              .get(UDF_OUT)
-              .apply(
-                  "JsonToTableRow",
-                  FailsafeJsonToTableRow.<KV<String, String>>newBuilder()
-                      .setSuccessTag(TRANSFORM_OUT)
-                      .setFailureTag(TRANSFORM_DEADLETTER_OUT)
-                      .build());
+              input
+                      // Map the incoming messages into FailsafeElements so we can recover from failures
+                      // across multiple transforms.
+                      .apply("MapToRecord", ParDo.of(new MessageToFailsafeElementFn()))
+                      .apply(
+                              "InvokeUDF",
+                              FailsafeJavascriptUdf.<KV<String, String>>newBuilder()
+                                      .setFileSystemPath(options.getJavascriptTextTransformGcsPath())
+                                      .setFunctionName(options.getJavascriptTextTransformFunctionName())
+                                      .setSuccessTag(UDF_OUT)
+                                      .setFailureTag(UDF_DEADLETTER_OUT)
+                                      .build());
 
       // Re-wrap the PCollections so we can return a single PCollectionTuple
       return PCollectionTuple.of(UDF_OUT, udfOut.get(UDF_OUT))
-          .and(UDF_DEADLETTER_OUT, udfOut.get(UDF_DEADLETTER_OUT))
-          .and(TRANSFORM_OUT, jsonToTableRowOut.get(TRANSFORM_OUT))
-          .and(TRANSFORM_DEADLETTER_OUT, jsonToTableRowOut.get(TRANSFORM_DEADLETTER_OUT));
+              .and(UDF_DEADLETTER_OUT, udfOut.get(UDF_DEADLETTER_OUT));
     }
   }
 

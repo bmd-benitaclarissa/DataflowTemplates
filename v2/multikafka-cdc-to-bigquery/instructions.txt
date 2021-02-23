@@ -1,0 +1,28 @@
+SET PROJECT=bmd-erp
+SET IMAGE_NAME=multikafka-cdc-to-bigquery
+SET BUCKET_NAME=gs://bmd-erp-unicornfish
+SET TARGET_GCR_IMAGE=gcr.io/%PROJECT%/%IMAGE_NAME%
+SET BASE_CONTAINER_IMAGE=gcr.io/dataflow-templates-base/java8-template-launcher-base
+SET BASE_CONTAINER_IMAGE_VERSION=latest
+SET TEMPLATE_MODULE=multikafka-cdc-to-bigquery
+SET APP_ROOT=/template/%TEMPLATE_MODULE%
+SET COMMAND_SPEC=%APP_ROOT%/resources/%TEMPLATE_MODULE%-command-spec.json
+SET TEMPLATE_IMAGE_SPEC=%BUCKET_NAME%/images/%TEMPLATE_MODULE%-image-spec.json
+
+SET TEMPLATE_CLASS=MultiKafkaCDCToBigQuery
+SET TEMPLATE_NAME=dev-v2-multikafka-cdc-to-bigquery
+
+-- compile this instructions in /v2 folder
+mvn clean package -Dimage=%TARGET_GCR_IMAGE% -Dbase-container-image=%BASE_CONTAINER_IMAGE% -Dbase-container-image.version=%BASE_CONTAINER_IMAGE_VERSION% -Dapp-root=%APP_ROOT% -Dcommand-spec=%COMMAND_SPEC% -am -pl %TEMPLATE_MODULE% -DskipTests -Dcheckstyle.skip
+
+SET BOOTSTRAP=10.155.20.2:19092,10.155.20.2:19093
+SET INPUT_TOPIC_REGEX=odoo-coba6\.public\.(.*)
+SET OUTPUT_TABLE_PREFIX=bmd-erp:odoodev.
+SET OUTPUT_TABLE_REPLACEMENT=odoo_$1
+SET JS_PATH=gs://bmd-erp-unicornfish/script/kc_udf.js
+SET JS_FUNC_NAME=transform
+
+
+
+
+mvn compile exec:java -Dexec.mainClass=com.google.cloud.teleport.templates.%TEMPLATE_CLASS% -Dexec.cleanupDaemonThreads=false -Dexec.args=" --project=%PROJECT% --stagingLocation=gs://%BUCKET_NAME%/staging --tempLocation=gs://%BUCKET_NAME%/temp --templateLocation=gs://%BUCKET_NAME%/templates/%TEMPLATE_NAME%.json --runner=DataflowRunner" -Dcheckstyle.skip -DskipTests
