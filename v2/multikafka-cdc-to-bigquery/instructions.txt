@@ -1,24 +1,27 @@
-SET PROJECT=bmd-erp
-SET IMAGE_NAME=multikafka-cdc-to-bigquery
-SET BUCKET_NAME=bmd-erp-unicornfish
+-- set env variables in terminal / command prompt
+SET PROJECT=
+SET IMAGE_NAME=
+SET BUCKET_NAME=
 SET TARGET_GCR_IMAGE=gcr.io/%PROJECT%/%IMAGE_NAME%
 SET BASE_CONTAINER_IMAGE=gcr.io/dataflow-templates-base/java8-template-launcher-base
 SET BASE_CONTAINER_IMAGE_VERSION=latest
-SET TEMPLATE_MODULE=multikafka-cdc-to-bigquery
+SET TEMPLATE_MODULE=
 SET APP_ROOT=/template/%TEMPLATE_MODULE%
 SET COMMAND_SPEC=%APP_ROOT%/resources/%TEMPLATE_MODULE%-command-spec.json
 SET TEMPLATE_IMAGE_SPEC=gs://%BUCKET_NAME%/images/%TEMPLATE_MODULE%-image-spec.json
 
-SET TEMPLATE_NAME=dev-v2-multikafka-cdc-to-bigquery
-SET TEMPLATE_CLASS=MultiKafkaCDCToBigQuery
+SET TEMPLATE_NAME=
+SET TEMPLATE_CLASS=
+SET IMAGE_VERSION=
 
+set GOOGLE_APPLICATION_CREDENTIALS=
 
-SET BOOTSTRAP=10.155.20.2:19092,10.155.20.2:19093
-SET INPUT_TOPIC_REGEX=odoo-coba6\.public\.(.*)
-SET OUTPUT_TABLE_PREFIX=bmd-erp:odoodev.
-SET OUTPUT_TABLE_REPLACEMENT=odoo_$1
-SET JS_PATH=gs://bmd-erp-unicornfish/script/kc_udf.js
-SET JS_FUNC_NAME=transform
+SET BOOTSTRAP=
+SET INPUT_TOPIC_REGEX=
+SET OUTPUT_TABLE_PREFIX=
+SET OUTPUT_TABLE_REPLACEMENT=
+SET JS_PATH=
+SET JS_FUNC_NAME=
 
 -- clean before build
 mvn clean
@@ -26,5 +29,18 @@ mvn clean
 -- compile java code in /v2 folder
 mvn clean package -Dimage=%TARGET_GCR_IMAGE% -Dbase-container-image=%BASE_CONTAINER_IMAGE% -Dbase-container-image.version=%BASE_CONTAINER_IMAGE_VERSION% -Dapp-root=%APP_ROOT% -Dcommand-spec=%COMMAND_SPEC% -am -pl %TEMPLATE_MODULE% -DskipTests -Dcheckstyle.skip
 
--- step 3: execute java class to dataflow
-mvn compile exec:java -Dexec.mainClass=com.google.cloud.teleport.templates.%TEMPLATE_CLASS% -Dexec.cleanupDaemonThreads=false -Dexec.args=" --project=%PROJECT% --stagingLocation=gs://%BUCKET_NAME%/staging --tempLocation=gs://%BUCKET_NAME%/temp --templateLocation=gs://%BUCKET_NAME%/templates/%TEMPLATE_NAME%.json --runner=DataflowRunner" -Dcheckstyle.skip -DskipTests
+docker login -u _json_key --password-stdin https://gcr.io < keyfile.json
+
+gcloud dataflow flex-template run "dev-v2-multikafka-cdc-to-bigquery-2021022403" --project=%PROJECT% --region=asia-east1 --template-file-gcs-location=%TEMPLATE_IMAGE_SPEC% --parameters ^^~^^bootstrapServers=%BOOTSTRAP%~inputTopicRegex=%INPUT_TOPIC_REGEX%~outputTablePrefix=%OUTPUT_TABLE_PREFIX%~outputTableReplacement=%OUTPUT_TABLE_REPLACEMENT%~javascriptTextTransformGcsPath=%JS_PATH%~javascriptTextTransformFunctionName=%JS_FUNC_NAME%
+
+
+-- compile java code for v1 only
+SET PROJECT=bmd-erp
+SET BUCKET_NAME=bmd-erp-unicornfish
+SET V1_TEMPLATE_CLASS=MultipleCDCKafkaTopicsToBigQuery
+SET V1_TEMPLATE_NAME=dev-v2-multiple-cdc-kafka-topics-to-bigquery
+SET MAVEN_OPTS="-Xmx2048m"
+SET JAVA_OPTS="-Xmx2048m"
+set GOOGLE_APPLICATION_CREDENTIALS=C:\Users\benita.clarissa\Documents\credentials\bmd-erp-5f617a152c70.json
+
+mvn compile exec:java -Dexec.mainClass=com.google.cloud.teleport.templates.%V1_TEMPLATE_CLASS% -Dexec.cleanupDaemonThreads=false -Dexec.args=" --project=%PROJECT% --region=asia-east1 --network=bmd-erp-gcp-mgt --subnetwork=regions/asia-east1/subnetworks/bmd-erp-gcp-mgt-private-asia-east1 --stagingLocation=gs://%BUCKET_NAME%/%V1_TEMPLATE_CLASS%/staging --tempLocation=gs://%BUCKET_NAME%/%V1_TEMPLATE_CLASS%/temp --templateLocation=gs://%BUCKET_NAME%/%V1_TEMPLATE_CLASS%/templates/%V1_TEMPLATE_NAME%.json --runner=DataflowRunner" -DargLine="-Xmx2048m -XX:NewSize=128m" -Dcheckstyle.skip -DskipTests

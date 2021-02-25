@@ -1,0 +1,55 @@
+
+{
+  "name": "MultipleCDCKafkaTopicsToBigQuery",
+  "description": "An Apache Beam streaming pipeline that reads JSON encoded CDC messages from Kafka, transform data by Javascript UDF function, and writes the results to a BigQuery",
+  "parameters": [
+    {
+      "name": "bootstrapServers",
+      "label": "Kafka Bootstrap Server",
+      "helpText": "Comma separated list of bootstrap servers.",
+      "regexes": [
+        ".*"
+      ]
+    },
+    {
+      "name": "inputTopicRegex",
+      "label": "Input Topic Regex",
+      "helpText": "Regular Expression of Kafka topics to read from.",
+      "regexes": [
+        ".*"
+      ]
+    },
+    {
+      "name": "outputTablePrefix",
+      "label": "BigQuery output table prefix (project and dataset name)",
+      "helpText": "BigQuery project and dataset name.",
+      "regexes": [
+        "[^:]+:[^.]+[.]"
+      ]
+    },
+    {
+      "name": "outputTableReplacement",
+      "label": "Output Table Replacement",
+      "helpText": "Replacement from inputTopicRegex to be applied in BigQuery table name.",
+      "regexes": [
+        ".*"
+      ]
+    },
+    {
+      "name": "javascriptTextTransformGcsPath",
+      "label": "Javascript Function Path",
+      "helpText": "Path to javascript function in GCS.",
+      "regexes": [
+        ".*"
+      ]
+    },
+    {
+      "name": "javascriptTextTransformFunctionName",
+      "label": "Name of javascript function",
+      "helpText": "Name of javascript function.",
+      "regexes": [
+        ".*"
+      ]
+    }
+  ]
+}

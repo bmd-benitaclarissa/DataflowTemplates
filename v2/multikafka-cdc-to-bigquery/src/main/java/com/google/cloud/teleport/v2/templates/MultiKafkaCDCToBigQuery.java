@@ -313,9 +313,11 @@ public class MultiKafkaCDCToBigQuery {
                             .<FailsafeElement<KV<String, String>, String>>write()
                             .to(new DynamicDestinations<FailsafeElement<KV<String, String>, String>, FailsafeElement<KV<String, String>, String>>() {
                               public FailsafeElement<KV<String, String>, String> getDestination(ValueInSingleWindow<FailsafeElement<KV<String, String>, String>> element) {
+                                LOG.debug("getDestination: {}", element.getValue());
                                 return element.getValue();
                               }
                               public TableDestination getTable(FailsafeElement<KV<String, String>, String> element) {
+                                LOG.debug("getTable (original payload key): {}", element.getOriginalPayload().getKey());
                                 return new TableDestination(element.getOriginalPayload().getKey(), "Record from Kafka");
                               }
                               public TableSchema getSchema(FailsafeElement<KV<String, String>, String> element) {
@@ -328,6 +330,7 @@ public class MultiKafkaCDCToBigQuery {
 
                                 for(idx = 0; idx < jsonFieldsLen; idx++){
                                   jsonField = jsonFields.getJSONObject(idx);
+                                  LOG.debug("field {}: {} {} {}", idx, jsonField.getString("field"), jsonField.getString("type"), jsonField.getBoolean("optional"));
                                   fields.add(new TableFieldSchema()
                                                 .setName(jsonField.getString("field").replaceAll("([^a-zA-Z0-9])", "_"))
                                                 .setType((jsonField.getString("type") == "int32" || jsonField.getString("type") == "int64") ? "INTEGER"
@@ -349,6 +352,7 @@ public class MultiKafkaCDCToBigQuery {
                                 String json = element.getPayload();
                                 TableRow row = null;
                                 // Parse the JSON into a {@link TableRow} object.
+                                LOG.debug("Parse json to tablerow: {}", json);
                                 try (InputStream inputStream =
                                              new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8))) {
                                   row = TableRowJsonCoder.of().decode(inputStream, Coder.Context.OUTER);
